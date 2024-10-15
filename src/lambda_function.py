@@ -1,40 +1,46 @@
 import json
 import gzip
+import logging
+import os
 import boto3
-from pathlib import Path
 from io import BytesIO
 
-s3 = boto3.client('s3')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
-def decompress(bucket_name, object_key):
-    object_file = s3.get_object(Bucket=bucket_name, Key=object_key)
-    object_body = object_file['Body'].read()
+s3 = boto3.client("s3")
+OUTPUT_PREFIX = os.getenv("LAMBDA_OUTPUT_PREFIX", "raw-data/")
 
-    with gzip.GzipFile(fileobj=BytesIO(object_body)) as gz:
-        uncompressed_data = gz.read()
 
-    return uncompressed_data
+def decompress(bucket, key):
+    obj = s3.get_object(Bucket=bucket, Key=key)
+    body = obj["Body"].read()
+    with gzip.GzipFile(fileobj=BytesIO(body)) as gz:
+        return gz.read()
 
-def lambda_handler(event, context):
+
+def lambda_handler(event, _context):
     try:
-        bucket_name = event['Records'][0]['s3']['bucket']['name']
-        object_key = event['Records'][0]['s3']['object']['key']
-        uncompressed_object_key = "raw-data/"+object_key.split('/')[-1].replace('.gz', '')
+        record = event["Records"][0]
+        bucket = record["s3"]["bucket"]["name"]
+        key = record["s3"]["object"]["key"]
 
+        if not key.endswith(".gz"):
+            logger.warning(f"Skipping non-gz: {key}")
+            return {"statusCode": 200, "body": json.dumps(f"Skipped: {key}")}
 
-        s3.put_object(
-            Bucket=bucket_name,
-            Key=uncompressed_object_key,
-            Body=decompress(bucket_name, object_key)
-        )
+        out_key = f"{OUTPUT_PREFIX}{key.split('/')[-1].replace('.gz', '')}"
+        data = decompress(bucket, key)
+        s3.put_object(Bucket=bucket, Key=out_key, Body=data)
 
         return {
-            'statusCode': 200,
-            'body': json.dumps(f'Successfully unzipped {object_key} to {uncompressed_object_key}')
+            "statusCode": 200,
+            "body": json.dumps({"src": key, "dst": out_key}),
         }
 
+    except KeyError as e:
+        logger.error(f"Invalid event: {e}")
+        return {"statusCode": 400, "body": json.dumps(f"Invalid event: {e}")}
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': json.dumps(f'Error processing {object_key}: {str(e)}')
-        }
+        logger.error(f"Error: {e}", exc_info=True)
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
