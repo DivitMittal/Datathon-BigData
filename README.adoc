@@ -1,4 +1,4 @@
-= Datathon-BigDaa
+= Datathon-BigData
 
 == Efficient Data Processing ETL Pipeline for Event Records
 To process raw product event data & filter relevant https://www.bobble.ai/en/home[BobbleAI Keyboard] event records from the last five days before July 1, 2024, expand JSON columns, and store the final data in a structured Apache Parquet format S3.
