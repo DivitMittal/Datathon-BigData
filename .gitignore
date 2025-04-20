@@ -3,3 +3,6 @@ dataset/
 
 # Jupyter Notebook
 **.ipynb_checkpoints
+
+## macOS directory temp
+**/.DS_Store
