@@ -1,8 +1,10 @@
-# Dataset
+## Dataset
 dataset/
-
-# Jupyter Notebook
+## Jupyter Notebook
 **.ipynb_checkpoints
-
-## macOS directory temp
+## macOS directory metadata
 **/.DS_Store
+## nix builds & nix direnv
+.direnv
+result
+result-
